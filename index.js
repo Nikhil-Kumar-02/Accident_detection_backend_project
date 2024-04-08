@@ -4,14 +4,25 @@ const app = express();
 const port = 3000;
 app.use(express.json());
 
-app.get("/",(req,res)=>{
+app.get('/' , (req,res) => {
+    return res.json({
+        success : 'true',
+        msg : 'default route getting hit ...!'
+    })
+})
+
+app.get("/sendData",(req,res)=>{
     const {userid  , latitude , longitude} = req.body;
+    console.log("the incoming data is : " , req.body);
     fs.appendFile('./file.txt' ," " + Date.now() + " " + userid + " " + latitude + " " + longitude, (err)=>{
         console.log("the error is: " , err)
     } );
-    res.json({
+
+    console.log('file write part processed!');
+
+    return res.json({
         success:true,
-        msg:"Running well"
+        msg:"Data stored in file.txt"
     })
 })
 
@@ -39,9 +50,11 @@ function getData(){
     return arr;
 }
 
-app.get('/getdata' , (req,res) => {
+app.get('/getAllData' , (req,res) => {
     //fetch the data from the file
-    let result = getData();
+    let arr = getData();
+
+    let result = []
 
     let i=0;
     while(i<arr.length){
@@ -58,6 +71,8 @@ app.get('/getdata' , (req,res) => {
         }
         i++;
     }
+
+    console.log('the processed all Data is : ' , result)
     
     return res.json({
         success : true,
@@ -66,8 +81,10 @@ app.get('/getdata' , (req,res) => {
     })
 })
 
-app.get('/details' , (req,res)=>{
+app.get('/userSpecificDetails' , (req,res)=>{
     const userId = req.body.userId;
+
+    console.log("the incoming user id is :" , userId);
     //fetch the data from the file
     let result = getData();
 
@@ -103,6 +120,8 @@ app.get('/details' , (req,res)=>{
         }
         i--;
     }
+
+    console.log('respose for user : ' , answer);
 
     return res.json({
         success:true,
