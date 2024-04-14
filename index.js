@@ -2,6 +2,13 @@ const express = require("express");
 const fs = require('fs')
 const app = express();
 const port = 10000;
+require('dotenv').config();
+
+const accountSid = process.env.accountSid;
+const authToken = process.env.authToken;
+
+const client = require('twilio')(accountSid, authToken);
+
 app.use(express.json());
 
 app.get('/' , (req,res) => {
@@ -37,8 +44,8 @@ app.post('/createEntry' , (req,res)=>{
     })
 })
 
-app.post("/sendData",(req,res)=>{
-
+app.post("/alert", async (req,res)=>{
+    console.log(req.body);
     let wholeUserData;
 
     fs.readFile('./file.json' , 'utf-8' , function (err, data) {
@@ -55,14 +62,37 @@ app.post("/sendData",(req,res)=>{
             const stringifiedData = JSON.stringify(wholeUserData);
 
             fs.writeFile('./file.json' ,stringifiedData, (err)=>{
-                console.log("the error is: " , err)
+                if(err){
+                    console.log("the error is: " , err)
+                }
             } );
         }
     })
 
+    //this user might met with an accident so send message to the immediatery
+
+    //first get the emergency contacts of this user
+    let wholedata = fs.readFileSync('./data.json' , 'utf-8');
+    wholedata = JSON.parse(wholedata);
+    //filter out the user from it
+    const userDetails = wholedata.filter((d) => d.userId === req.body.userId);
+    
+    const emergencyNumber = userDetails[0].emergencyNumber;
+    
+    //now send message to this number
+
+    const result = await client.messages
+        .create({
+            body: `${req.body.msg}`,
+            from: '+12514514608',
+            to: `${emergencyNumber}`
+        })
+        .then(message => console.log(message.sid))
+
     return res.json({
         success:true,
-        msg:"Data stored in file.json"
+        msg:"Data stored in file.json",
+        emergencyNumber
     })
 })
 
