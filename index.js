@@ -1,83 +1,81 @@
 const express = require("express");
 const fs = require('fs')
 const app = express();
-const port = 3000;
+const port = 10000;
 app.use(express.json());
 
 app.get('/' , (req,res) => {
+    console.log('the parameter are : ' , req.query.latitude , req.query.longitude);
     return res.json({
         success : 'true',
         msg : 'default route getting hit ...!'
     })
 })
 
-app.get("/sendData",(req,res)=>{
-    const {userid  , latitude , longitude} = req.body;
-    console.log("the incoming data is : " , req.body);
-    fs.appendFile('./file.txt' ," " + Date.now() + " " + userid + " " + latitude + " " + longitude, (err)=>{
-        console.log("the error is: " , err)
-    } );
+app.post('/createEntry' , (req,res)=>{
 
-    console.log('file write part processed!');
+    let wholeUserData;
+
+    fs.readFile('./data.json' , 'utf-8' , function (err, data) {
+        if (err)
+            console.log("error while reading the data.json " , err);
+        else{
+            wholeUserData = JSON.parse(data);
+
+            wholeUserData.push(req.body);
+            const stringifiedData = JSON.stringify(wholeUserData);
+
+            fs.writeFile('./data.json' ,stringifiedData, (err)=>{
+                console.log("the error is: " , err)
+            } );
+        }
+    })
 
     return res.json({
         success:true,
-        msg:"Data stored in file.txt"
+        msg:"Data stored in data.json"
     })
 })
 
-function getData(){
-    const data = fs.readFileSync('./file.txt' , 'utf-8')
-    const values = data.split(' ');
+app.post("/sendData",(req,res)=>{
 
-    //i want to push data into an array
-    let arr = [];
-    //iterate in the string and store data in the array
-    let i = 0;
-    while(i<values.length){
-        //extract the time at a index and its corrosponding coordinates
-        let time = values[i];
-        i++;
-        let user = values[i];
-        i++;
-        let latitude = values[i];
-        i++;
-        let longitude = values[i];
-        i++;
-        arr.push({time , user , latitude , longitude});
-    }
+    let wholeUserData;
 
-    return arr;
-}
+    fs.readFile('./file.json' , 'utf-8' , function (err, data) {
+        if (err)
+            console.log("error while reading the data.json " , err);
+        else{
+            wholeUserData = JSON.parse(data);
+
+            let incomingData = req.body;
+            incomingData.date = Date.now();
+
+            wholeUserData.push(incomingData);
+
+            const stringifiedData = JSON.stringify(wholeUserData);
+
+            fs.writeFile('./file.json' ,stringifiedData, (err)=>{
+                console.log("the error is: " , err)
+            } );
+        }
+    })
+
+    return res.json({
+        success:true,
+        msg:"Data stored in file.json"
+    })
+})
+
 
 app.get('/getAllData' , (req,res) => {
     //fetch the data from the file
-    let arr = getData();
+    let arr = fs.readFileSync('./file.json' , 'utf-8');
 
-    let result = []
-
-    let i=0;
-    while(i<arr.length){
-        let j=i+1;
-        let lat = arr[i].latitude;
-        let long = arr[i].longitude;
-        let endTimeRange = parseInt(arr[i].time) + 5000;
-        while(j < arr.length && parseInt(arr[j].time) <= endTimeRange){
-            console.log(i , j ,parseInt(arr[j].time)-parseInt(arr[i].time))
-            if(arr[j].latitude===lat && arr[j].longitude === long){
-                result.push({i ,j});
-            }
-            j++;
-        }
-        i++;
-    }
-
-    console.log('the processed all Data is : ' , result)
+    arr = JSON.parse(arr);
     
     return res.json({
         success : true,
         allData : arr,
-        data : result
     })
 })
 
@@ -86,7 +84,7 @@ app.get('/userSpecificDetails' , (req,res)=>{
 
     console.log("the incoming user id is :" , userId);
     //fetch the data from the file
-    let result = getData();
+    let result = fs.readFileSync('./file.json' , 'utf-8')
 
     //now for this user last collision call find who was closest to his location
     let i = result.length - 1;
@@ -130,5 +128,5 @@ app.get('/userSpecificDetails' , (req,res)=>{
 })
 
 app.listen(port,()=>{
-    console.log("Server running...")
+    console.log("Server running..." , port)
 })
