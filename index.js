@@ -11,6 +11,19 @@ const client = require('twilio')(accountSid, authToken);
 
 app.use(express.json());
 
+function generateEmailTemplate(name, mapURL , accidentTime) {
+    return `
+        ALERT!!!
+
+        ${name} has met with an accident
+        Time of accident : ${accidentTime}
+        Location : ${mapURL}
+        
+        Try to reach him/her to see if he/she is okay or need urgent help
+    `;
+}
+
+
 app.get('/' , (req,res) => {
     console.log('the parameter are : ' , req.query.latitude , req.query.longitude);
     return res.json({
@@ -47,20 +60,19 @@ app.post('/createEntry' , (req,res)=>{
 app.post("/alert", async (req,res)=>{
     console.log(req.body);
     let wholeUserData;
-
+    
     fs.readFile('./file.json' , 'utf-8' , function (err, data) {
         if (err)
-            console.log("error while reading the data.json " , err);
+        console.log("error while reading the data.json " , err);
         else{
             wholeUserData = JSON.parse(data);
-
+            
             let incomingData = req.body;
-            incomingData.date = Date.now();
-
+            
             wholeUserData.push(incomingData);
-
+            
             const stringifiedData = JSON.stringify(wholeUserData);
-
+            
             fs.writeFile('./file.json' ,stringifiedData, (err)=>{
                 if(err){
                     console.log("the error is: " , err)
@@ -68,31 +80,45 @@ app.post("/alert", async (req,res)=>{
             } );
         }
     })
-
+    
     //this user might met with an accident so send message to the immediatery
-
+    
     //first get the emergency contacts of this user
     let wholedata = fs.readFileSync('./data.json' , 'utf-8');
     wholedata = JSON.parse(wholedata);
     //filter out the user from it
-    const userDetails = wholedata.filter((d) => d.userId === req.body.userId);
+    let userDetails = wholedata.filter((d) => d.userId === req.body.userId);
+    console.log(userDetails);
+    if(userDetails && userDetails.length === 0){
+        return res.status(200).json({
+            success : false,
+            message : "No such user with this id exists"
+        })
+    }
     
-    const emergencyNumber = userDetails[0].emergencyNumber;
+    userDetails = userDetails[0];
+    
+    const emergencyNumbers = userDetails.emergencyNumber;
+    
+    const message = generateEmailTemplate(userDetails.name,req.body.location,req.body.time);
     
     //now send message to this number
-
-    const result = await client.messages
+    
+    for(const emergencyNumber of emergencyNumbers){
+        console.log("number is : " , emergencyNumber);
+        await client.messages
         .create({
-            body: `${req.body.msg}`,
+            body: `${message}`,
             from: '+12514514608',
             to: `${emergencyNumber}`
         })
         .then(message => console.log(message.sid))
+    }
 
     return res.json({
         success:true,
         msg:"Data stored in file.json",
-        emergencyNumber
+        emergencyNumbers
     })
 })
 
